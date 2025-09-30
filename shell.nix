@@ -6,6 +6,9 @@ pkgs.mkShell {
     typescript-language-server
     deno
     prettier
+    sqlc
+    sqlite
+    sqlitebrowser
   ];
 
   shellHook = ''

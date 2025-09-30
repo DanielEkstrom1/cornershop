@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -23,8 +24,48 @@ const (
 // -hls_time 3 -hls_fmp4_init_filename init.mp4 -hls_playlist_type vod -hls_list_size 0
 // -hls_segment_filename "paradise%d.mp4" out.m3u8
 
-func (h *Hls) GenPlaylist(mkv string) ([]byte, error) {
-	if _, err := os.Stat(mkv); errors.Is(err, os.ErrNotExist) {
+func (h Hls) getMedia() ([]*ProbeInfo, error) {
+	entries, err := os.ReadDir(h.Directory)
+
+	fmt.Println(entries)
+
+	var result []*ProbeInfo
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		file, err := entry.Info()
+		if err != nil {
+			return nil, err
+		}
+
+		ParseFile(file.Name())
+
+		res, err := h.Prober.Probe(h.getPath(file.Name()))
+		fmt.Println(res)
+
+		if err != nil {
+			return nil, nil
+		}
+
+		result = append(result, res)
+
+	}
+
+	return result, nil
+}
+
+func (h Hls) getPath(filename string) string {
+	return path.Join(h.Directory, filename)
+
+}
+
+func (h Hls) GenPlaylist(mkv string) ([]byte, error) {
+	fullpath := h.getPath(mkv)
+
+	if _, err := os.Stat(fullpath); errors.Is(err, os.ErrNotExist) {
 		return []byte(""), os.ErrNotExist
 	}
 	sb := bytes.Buffer{}
@@ -38,7 +79,7 @@ func (h *Hls) GenPlaylist(mkv string) ([]byte, error) {
 
 	io.CopyN(os.Stdout, strings.NewReader(sb.String()), int64(sb.Len()))
 
-	info, err := h.Prober.Probe(mkv)
+	info, err := h.Prober.Probe(fullpath)
 	if err != nil {
 		return []byte(""), err
 	}

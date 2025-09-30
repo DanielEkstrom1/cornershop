@@ -62,7 +62,8 @@ class Router {
             </div>
             <div class="flex-none">
               <ul class="menu menu-horizontal px-1">
-                <li><a href="/" class="${this.currentPath === "/" ? "active" : ""}">Player</a></li>
+                <li><a href="/" class="${this.currentPath === "/" ? "active" : ""}">Home</a></li>
+                <li><a href="/video" class="${this.currentPath === "/" ? "active" : ""}">Player</a></li>
                 <li><a href="/about" class="${this.currentPath === "/about" ? "active" : ""}">About</a></li>
               </ul>
               <button id="syncplay-btn" class="btn btn-primary ml-4">

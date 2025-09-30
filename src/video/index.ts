@@ -1,6 +1,7 @@
 import Hls from "hls.js";
+import { walkUpBindingElementsAndPatterns } from "typescript";
 
-export function html() {
+export function render(): string {
   const html = `
 <div  class="flex flex-col items-center justify-center">
 <video width="900" id="video"></video>
@@ -21,7 +22,12 @@ export function html() {
   return html;
 }
 
-var hls = new Hls();
+var hls: Hls
+export function setup(): void {
+  hls = new Hls();
+  setupVideo(document.querySelector<HTMLVideoElement>("#video")!);
+}
+
 var prog: HTMLProgressElement;
 var playbtn: HTMLButtonElement;
 var pausebtn: HTMLButtonElement;
@@ -29,13 +35,7 @@ var infobtn: HTMLButtonElement;
 var starttxt: HTMLParagraphElement;
 var endtxt: HTMLParagraphElement;
 
-async function getMainPlaylist(): Promise<string> {
-  const response = await fetch("/api/video/main.m3u8");
-  const data = await response.text();
-  console.log(data);
-  return data;
-}
-export async function setupVideo(element: HTMLVideoElement) {
+async function setupVideo(element: HTMLVideoElement) {
   prog = document.querySelector<HTMLProgressElement>("#bufferProgress")!;
   playbtn = document.querySelector<HTMLButtonElement>("#play")!;
   pausebtn = document.querySelector<HTMLButtonElement>("#pause")!;
@@ -86,9 +86,12 @@ export async function setupVideo(element: HTMLVideoElement) {
     });
 
     //const videoUrl = await getMainPlaylist()
-    const videoUrl = new URL("api/video/main.m3u8", `${window.location.href}`).href;
-
-    hls.loadSource(videoUrl);
+    const videoUrl = new URL("api/video/main.m3u8", `${window.location.href}`);
+    const id = new URL(window.location.href).searchParams.get("id")
+    console.log(id)
+    if (!id) window.location.href = "/"
+    videoUrl.searchParams.set("id", id!)
+    hls.loadSource(videoUrl.href);
     hls.attachMedia(element);
   }
 }

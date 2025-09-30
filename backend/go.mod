@@ -5,6 +5,9 @@ go 1.24.6
 require github.com/quic-go/quic-go v0.54.1
 
 require (
+	github.com/google/uuid v1.5.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.32 // indirect
+	github.com/nssteinbrenner/anitogo v1.0.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
