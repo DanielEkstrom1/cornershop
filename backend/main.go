@@ -1,19 +1,14 @@
 package main
 
 import (
-	cornershopdb "baller/cornershop/cornershop"
 	"context"
+	"crypto/sha1"
 	"database/sql"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path"
-	"strconv"
-	"strings"
 
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/quic-go/quic-go/http3"
 
@@ -34,11 +29,18 @@ func init() {
 var ddl string
 
 var (
-	db  *sql.DB
-	err error
+	db       *sql.DB
+	err      error
+	hasher   = sha1.New()
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+	prober = Prober{}
+	hls    = Hls{Prober: prober, MkvDir: "../media", OutDir: "../transcodes"}
 )
 
-func main() {
+func init() {
 	ctx := context.Background()
 	os.Remove("foo.db")
 
@@ -47,7 +49,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	if _, err := db.ExecContext(ctx, ddl); err != nil {
 		panic(err)
 	}
@@ -57,86 +58,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
 
-	store := cornershopdb.New(db)
-	epi, _ := store.ListEpisodes(context.Background())
-	fmt.Printf("%v\n", epi)
-
+func main() {
 	port := ":8080"
+
 	router := http.NewServeMux()
 
-	prober := Prober{}
-	hls := Hls{Prober: prober, Directory: "../media"}
+	hub := NewHub()
+	go hub.Run()
 
-	router.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("hello endpoint\n")
-		w.Write([]byte("hello from go"))
+
+	router.HandleFunc("/socket", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(hub, w, r)
 	})
 
-	router.HandleFunc("/video/", func(w http.ResponseWriter, r *http.Request) {
-		lst := strings.Split(r.URL.Path, "/")
-		filename := lst[len(lst)-1]
-		fmt.Println(filename)
-
-		if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
-			w.WriteHeader(404)
-			w.Write([]byte("Not Found"))
-			return
-		}
-		http.ServeFile(w, r, path.Join(hls.Directory, filename))
-	})
-
-	router.HandleFunc("/media/list", func(w http.ResponseWriter, r *http.Request) {
-		store := cornershopdb.New(db)
-		episodes, err := store.ListEpisodes(r.Context())
-
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(episodes)
-	})
-
-	router.HandleFunc("/video/main.m3u8", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-
-		fmt.Println(id)
-		num, err := strconv.ParseInt(id, 10, 64)
-
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		ep, err := store.GetEpisode(r.Context(), num)
-
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			log.Println(err)
-			return
-		}
-
-		fmt.Println(ep.FileName)
-		bytes, err := hls.GenPlaylist(ep.FileName)
-
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(200)
-		w.Write(bytes)
-	})
+	HydrateRouter(router)
 
 	log.Printf("Serving in %s\n", port)
-	log.Fatal(http3.ListenAndServeTLS(port, "cert.pem", "key.pem", Loggin(router)))
+	log.Fatal(http3.ListenAndServeTLS(port, "cert.pem", "key.pem", Cookie(Loggin(router))))
 }
 
-func Loggin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-		log.Println("Request", r.Method, r.URL.Path)
-	})
-}

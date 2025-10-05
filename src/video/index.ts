@@ -1,5 +1,4 @@
 import Hls from "hls.js";
-import { walkUpBindingElementsAndPatterns } from "typescript";
 
 export function render(): string {
   const html = `
@@ -36,6 +35,7 @@ var starttxt: HTMLParagraphElement;
 var endtxt: HTMLParagraphElement;
 
 async function setupVideo(element: HTMLVideoElement) {
+  let errocount = 0
   prog = document.querySelector<HTMLProgressElement>("#bufferProgress")!;
   playbtn = document.querySelector<HTMLButtonElement>("#play")!;
   pausebtn = document.querySelector<HTMLButtonElement>("#pause")!;
@@ -76,9 +76,15 @@ async function setupVideo(element: HTMLVideoElement) {
       switch (data.details) {
         case Hls.ErrorDetails.FRAG_LOAD_ERROR:
           console.log("Frag load error");
+          if (errocount++ > 3) {
+          hls.detachMedia()
+          hls.destroy()
+          }
           break;
         case Hls.ErrorDetails.MANIFEST_PARSING_ERROR:
           console.log(data.error.stack);
+          hls.detachMedia()
+          hls.destroy()
           break;
         default:
           break;

@@ -10,6 +10,8 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/,''),
         changeOrigin: true,
         secure: false,
+        rewriteWsOrigin: true,
+        ws: true,
       }
     }
   }

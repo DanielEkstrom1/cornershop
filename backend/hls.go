@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
+	"log"
 	"math"
 	"os"
 	"path"
-	"strings"
 )
 
 type Hls struct {
-	Directory string
-	Prober    Prober
+	MkvDir string
+	OutDir string
+	Prober Prober
 }
 
 const (
-	HLSTIME = 3
+	HLSTIME int = 3
 )
 
 //  ffmpeg -i short.mp4 -c:v h264 -flags +cgop -g 30 -threads 0 -hls_segment_type fmp4
@@ -25,7 +25,7 @@ const (
 // -hls_segment_filename "paradise%d.mp4" out.m3u8
 
 func (h Hls) getMedia() ([]*ProbeInfo, error) {
-	entries, err := os.ReadDir(h.Directory)
+	entries, err := os.ReadDir(h.MkvDir)
 
 	fmt.Println(entries)
 
@@ -58,7 +58,23 @@ func (h Hls) getMedia() ([]*ProbeInfo, error) {
 }
 
 func (h Hls) getPath(filename string) string {
-	return path.Join(h.Directory, filename)
+	return path.Join(h.MkvDir, filename)
+
+}
+
+func (h Hls) SegmentMKVToHLS(mkv string) error {
+	fullpath := h.getPath(mkv)
+
+	if _, err := os.Stat(fullpath); errors.Is(err, os.ErrNotExist) {
+		return os.ErrNotExist
+	}
+
+	if err := h.Prober.SegmentMKVToHLS(fullpath, h.OutDir); err != nil {
+		log.Println("Segment to mkv failed, err: ", err)
+		return err
+	}
+
+	return nil
 
 }
 
@@ -77,14 +93,12 @@ func (h Hls) GenPlaylist(mkv string) ([]byte, error) {
 	sb.WriteString("#EXT-X-PLAYLIST-TYPE:VOD\n")
 	sb.WriteString("#EXT-X-MAP:URI=\"init.mp4\"\n")
 
-	io.CopyN(os.Stdout, strings.NewReader(sb.String()), int64(sb.Len()))
-
 	info, err := h.Prober.Probe(fullpath)
 	if err != nil {
 		return []byte(""), err
 	}
 
-	segments := math.Floor(float64(info.Format.Duration) / HLSTIME)
+	segments := math.Floor(float64(info.Format.Duration) / float64(HLSTIME))
 
 	for index := range int(segments) {
 		sb.WriteString("#EXTINF:3.000000,\n")

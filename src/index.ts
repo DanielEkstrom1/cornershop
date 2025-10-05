@@ -31,7 +31,7 @@ export async function setup() {
     
     const location = window.location.href
     const str =`${location}video?id=${media.id}`
-    li.innerHTML = media.anime_title
+    li.innerHTML = media.anime_title ? media.anime_title : media.file_name
     li.className = "cursor-pointer"
     li.onclick = () => {window.location.href = str}
     ul.appendChild(li)

@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
 )
 
 type Prober struct {
@@ -81,6 +85,90 @@ func checkFFProbe() error {
 	}
 	return nil
 }
+
+type ChanWriter struct {
+	donech chan struct{}
+	recvch chan []byte
+}
+
+func newChanWrite() *ChanWriter {
+	recvch := make(chan []byte)
+	donech := make(chan struct{})
+	return &ChanWriter{
+		donech: donech,
+		recvch: recvch,
+	}
+}
+
+func (c ChanWriter) Write(b []byte) (int, error) {
+	c.recvch <- b
+	return len(b), nil
+}
+
+func (p Prober) SegmentMKVToHLS(filepath, outdir string) error {
+	if _, err := os.Stat(filepath); errors.Is(err, os.ErrNotExist) {
+		return os.ErrNotExist
+	}
+
+	// 	ffmpeg -noaccurate_seek -init_hw_device cuda=cu:0 -filter_hw_device cu
+	// 	-hwaccel cuda -hwaccel_output_format cuda -noautorotate -hwaccel_flags +unsafe_output
+	//  -threads 1 -canvas_size 1920x1080 -i video.mkv -codec:v:0 h264_nvenc
+	//  -preset fast -vf "scale_cuda=format=yuv420p" -flags +cgop -g 30
+	//  -threads 0 -hls_segment_type fmp4 -hls_time 3 -hls_fmp4_init_filename init.mp4
+	//  -hls_playlist_type vod -hls_list_size 0 -hls_segment_filename "hash%d.mp4" out.m3u8
+
+	chWriter := newChanWrite()
+	log.Printf("Writing to %s\n", outdir)
+
+	cmd := exec.Command("ffmpeg", "-noaccurate_seek", "-init_hw_device", "cuda=cu:0", "-filter_hw_device", "cu",
+		"-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-noautorotate", "-v", "quiet", "-stats", "-hwaccel_flags", "+unsafe_output",
+		"-threads", "1", "-canvas_size", "1920x1080", "-i", filepath, "-codec:v:0", "h264_nvenc",
+		"-preset", "fast", "-vf", "scale_cuda=format=yuv420p", "-flags", "+cgop", "-g", "30",
+		"-threads", "0", "-hls_segment_type", "fmp4", "-hls_time", fmt.Sprintf("%d", HLSTIME), "-hls_fmp4_init_filename", "init.mp4",
+		"-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_segment_filename", fmt.Sprintf("%s", path.Join(outdir, "hash%d.mp4")), path.Join(outdir, "out.m3u8"))
+
+	log.Printf("Running Command: %s", strings.Join(cmd.Args, " "))
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case <-chWriter.donech:
+				log.Println("Closing stderr channel")
+				close(chWriter.recvch)
+				return
+			default:
+				io.Copy(chWriter, stderr)
+			}
+		}
+	}()
+
+	go func() {
+		log.Println("Receving data")
+		for {
+			select {
+			case <-chWriter.donech:
+				log.Println("Closing output")
+				return
+			default:
+				_ = <-chWriter.recvch
+			}
+		}
+	}()
+
+	defer close(chWriter.donech)
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p Prober) Probe(file string) (*ProbeInfo, error) {
 	// If exists
 	if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
@@ -90,7 +178,6 @@ func (p Prober) Probe(file string) (*ProbeInfo, error) {
 	cmd := exec.Command("ffprobe", "-i", file, "-v", "error", "-select_streams", "s",
 		"-show_entries", "stream=index:stream_tags=language,title",
 		"-print_format", "json", "-show_format")
-	_ = exec.Command("echo", "-n", `{"Name": "Bob", "Age": 32}`)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
