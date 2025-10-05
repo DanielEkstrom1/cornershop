@@ -3,3 +3,6 @@ front:
 
 back:
 	cd backend && go run .
+
+sqlc:
+	cd backend && sqlc generate

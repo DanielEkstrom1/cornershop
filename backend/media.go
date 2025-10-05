@@ -3,6 +3,7 @@ package main
 import (
 	cornershopdb "baller/cornershop/cornershop"
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
@@ -18,15 +19,76 @@ func ListEpisodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func Playing(w http.ResponseWriter, r *http.Request) {
-
+	id := r.Context().Value("id").(string)
+	store := cornershopdb.New(db)
+	if err := store.UpdatePlayingSession(r.Context(), cornershopdb.UpdatePlayingSessionParams{
+		Playing: true,
+		Device:  id,
+	}); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
+
 func Stopped(w http.ResponseWriter, r *http.Request) {
-
+	id := r.Context().Value("id").(string)
+	store := cornershopdb.New(db)
+	if err := store.UpdatePlayingSession(r.Context(), cornershopdb.UpdatePlayingSessionParams{
+		Playing: false,
+		Device:  id,
+	}); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
+
 func Session(w http.ResponseWriter, r *http.Request) {
+	var params cornershopdb.UpdateSessionParams
+	id := r.Context().Value("id").(string)
+	params.Device = id
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		if err != io.EOF {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+	}
+	store := cornershopdb.New(db)
+	if err := store.UpdateSession(r.Context(), params); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+}
+
+func Kill(w http.ResponseWriter, r *http.Request) {
+	store := cornershopdb.New(db)
+
+	var params cornershopdb.UpdateSessionParams
+	id := r.Context().Value("id").(string)
+	params.Device = id
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		if err != io.EOF {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+	}
+
+	if err := store.UpdateSession(r.Context(), params); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if client, ok := hub.clients[id]; ok {
+		if err := client.cmd.Process.Kill(); err != nil {
+			return
+		}
+	}
 
 }
-func Seek(w http.ResponseWriter, r *http.Request)    {
 
+func Seek(w http.ResponseWriter, r *http.Request) {
+	//store := cornershopdb.New(db)
 }
-

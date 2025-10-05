@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 
 	"github.com/gorilla/websocket"
 )
@@ -12,6 +14,7 @@ type Client struct {
 	conn   *websocket.Conn
 	outbuf chan []byte
 	id     string
+	cmd    *exec.Cmd
 }
 
 func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
@@ -40,21 +43,37 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 func (c *Client) write() {
 	for {
 		msg := <-c.outbuf
+		if msg == nil {
+			return
+		}
 		c.conn.WriteMessage(websocket.TextMessage, msg)
 	}
 }
 
 func (c *Client) read() {
+	defer func() {
+		c.hub.unregister <- c
+		c.conn.Close()
+	}()
+
 	for {
 		messageType, p, err := c.conn.ReadMessage()
 
 		if err != nil {
-			log.Println(err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("error: %v", err)
+			}
+			if websocket.IsCloseError(err, websocket.CloseGoingAway) {
+				return
+			}
+			fmt.Printf("Err: %s\n", err)
 			return
 		}
+
 		switch messageType {
 		case websocket.CloseMessage:
-			c.hub.unregister <- c
+			c.outbuf <- nil
+			return
 		case websocket.TextMessage:
 			if err := c.conn.WriteMessage(messageType, p); err != nil {
 				log.Println(err)

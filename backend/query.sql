@@ -19,11 +19,44 @@ INSERT INTO episode (
   source ,
   video_resolution ,
   video_term
-) VALUES (
-  ?, ?, ?, ? ,?, ? ,? ,?, ?, ? ,?
-)
+) 
+VALUES (?,?,?,?,?,?,?,?,?,?,?)
 RETURNING *;
 
 -- name: DeleteEpisode :exec
 DELETE FROM episode
-WHERE id = ?;
+WHERE id ='?';
+
+-- name: CreateDevice :one
+INSERT INTO device (
+  id,
+  agent
+) VALUES (?,?)
+RETURNING id;
+
+-- name: GetDevice :one
+SELECT id from device
+WHERE id = ? limit 1;
+
+-- name: CreateSession :exec
+INSERT INTO user_session (
+  device,
+  anime_title,
+  episode_number
+) VALUES (?,?,?);
+
+-- name: UpdateSession :exec
+UPDATE user_session 
+SET playing = ?,
+  anime_title = ?,
+  episode_number  = ?,
+  transcoding  = ?,
+  position  = ?
+WHERE device = ?;
+
+-- name: UpdatePlayingSession :exec
+UPDATE user_session 
+SET playing = ?
+WHERE device = ?;
+
+

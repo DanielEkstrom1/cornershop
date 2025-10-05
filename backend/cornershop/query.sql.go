@@ -9,6 +9,26 @@ import (
 	"context"
 )
 
+const createDevice = `-- name: CreateDevice :one
+INSERT INTO device (
+  id,
+  agent
+) VALUES (?,?)
+RETURNING id
+`
+
+type CreateDeviceParams struct {
+	ID    string `json:"id"`
+	Agent string `json:"agent"`
+}
+
+func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, createDevice, arg.ID, arg.Agent)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const createEpisode = `-- name: CreateEpisode :one
 INSERT INTO episode (
   anime_season ,
@@ -22,9 +42,8 @@ INSERT INTO episode (
   source ,
   video_resolution ,
   video_term
-) VALUES (
-  ?, ?, ?, ? ,?, ? ,? ,?, ?, ? ,?
-)
+) 
+VALUES (?,?,?,?,?,?,?,?,?,?,?)
 RETURNING id, anime_season, anime_title, audio_term, episode_number, file_checksum, file_extension, file_name, release_group, source, video_resolution, video_term
 `
 
@@ -74,14 +93,44 @@ func (q *Queries) CreateEpisode(ctx context.Context, arg CreateEpisodeParams) (E
 	return i, err
 }
 
-const deleteEpisode = `-- name: DeleteEpisode :exec
-DELETE FROM episode
-WHERE id = ?
+const createSession = `-- name: CreateSession :exec
+INSERT INTO user_session (
+  device,
+  anime_title,
+  episode_number
+) VALUES (?,?,?)
 `
 
-func (q *Queries) DeleteEpisode(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteEpisode, id)
+type CreateSessionParams struct {
+	Device        string `json:"device"`
+	AnimeTitle    string `json:"anime_title"`
+	EpisodeNumber string `json:"episode_number"`
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
+	_, err := q.db.ExecContext(ctx, createSession, arg.Device, arg.AnimeTitle, arg.EpisodeNumber)
 	return err
+}
+
+const deleteEpisode = `-- name: DeleteEpisode :exec
+DELETE FROM episode
+WHERE id ='?'
+`
+
+func (q *Queries) DeleteEpisode(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteEpisode)
+	return err
+}
+
+const getDevice = `-- name: GetDevice :one
+SELECT id from device
+WHERE id = ? limit 1
+`
+
+func (q *Queries) GetDevice(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getDevice, id)
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getEpisode = `-- name: GetEpisode :one
@@ -148,4 +197,51 @@ func (q *Queries) ListEpisodes(ctx context.Context) ([]Episode, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updatePlayingSession = `-- name: UpdatePlayingSession :exec
+UPDATE user_session 
+SET playing = ?
+WHERE device = ?
+`
+
+type UpdatePlayingSessionParams struct {
+	Playing bool   `json:"playing"`
+	Device  string `json:"device"`
+}
+
+func (q *Queries) UpdatePlayingSession(ctx context.Context, arg UpdatePlayingSessionParams) error {
+	_, err := q.db.ExecContext(ctx, updatePlayingSession, arg.Playing, arg.Device)
+	return err
+}
+
+const updateSession = `-- name: UpdateSession :exec
+UPDATE user_session 
+SET playing = ?,
+  anime_title = ?,
+  episode_number  = ?,
+  transcoding  = ?,
+  position  = ?
+WHERE device = ?
+`
+
+type UpdateSessionParams struct {
+	Playing       bool   `json:"playing"`
+	AnimeTitle    string `json:"anime_title"`
+	EpisodeNumber string `json:"episode_number"`
+	Transcoding   bool   `json:"transcoding"`
+	Position      int64  `json:"position"`
+	Device        string `json:"device"`
+}
+
+func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) error {
+	_, err := q.db.ExecContext(ctx, updateSession,
+		arg.Playing,
+		arg.AnimeTitle,
+		arg.EpisodeNumber,
+		arg.Transcoding,
+		arg.Position,
+		arg.Device,
+	)
+	return err
 }

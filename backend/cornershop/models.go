@@ -4,6 +4,11 @@
 
 package cornershopdb
 
+type Device struct {
+	ID    string `json:"id"`
+	Agent string `json:"agent"`
+}
+
 type Episode struct {
 	ID              int64  `json:"id"`
 	AnimeSeason     string `json:"anime_season"`
@@ -17,4 +22,14 @@ type Episode struct {
 	Source          string `json:"source"`
 	VideoResolution string `json:"video_resolution"`
 	VideoTerm       string `json:"video_term"`
+}
+
+type UserSession struct {
+	ID            int64  `json:"id"`
+	Device        string `json:"device"`
+	AnimeTitle    string `json:"anime_title"`
+	EpisodeNumber string `json:"episode_number"`
+	Playing       bool   `json:"playing"`
+	Transcoding   bool   `json:"transcoding"`
+	Position      int64  `json:"position"`
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -91,12 +92,11 @@ type ChanWriter struct {
 	recvch chan []byte
 }
 
-func newChanWrite() *ChanWriter {
-	recvch := make(chan []byte)
+func newChanWrite(ch chan []byte) *ChanWriter {
 	donech := make(chan struct{})
 	return &ChanWriter{
 		donech: donech,
-		recvch: recvch,
+		recvch: ch,
 	}
 }
 
@@ -105,7 +105,7 @@ func (c ChanWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (p Prober) SegmentMKVToHLS(filepath, outdir string) error {
+func (p Prober) SegmentMKVToHLS(ctx context.Context, filepath, outdir string) error {
 	if _, err := os.Stat(filepath); errors.Is(err, os.ErrNotExist) {
 		return os.ErrNotExist
 	}
@@ -117,14 +117,13 @@ func (p Prober) SegmentMKVToHLS(filepath, outdir string) error {
 	//  -threads 0 -hls_segment_type fmp4 -hls_time 3 -hls_fmp4_init_filename init.mp4
 	//  -hls_playlist_type vod -hls_list_size 0 -hls_segment_filename "hash%d.mp4" out.m3u8
 
-	chWriter := newChanWrite()
 	log.Printf("Writing to %s\n", outdir)
 
 	cmd := exec.Command("ffmpeg", "-noaccurate_seek", "-init_hw_device", "cuda=cu:0", "-filter_hw_device", "cu",
 		"-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-noautorotate", "-v", "quiet", "-stats", "-hwaccel_flags", "+unsafe_output",
 		"-threads", "1", "-canvas_size", "1920x1080", "-i", filepath, "-codec:v:0", "h264_nvenc",
 		"-preset", "fast", "-vf", "scale_cuda=format=yuv420p", "-flags", "+cgop", "-g", "30",
-		"-threads", "0", "-hls_segment_type", "fmp4", "-hls_time", fmt.Sprintf("%d", HLSTIME), "-hls_fmp4_init_filename", "init.mp4",
+		"-threads", "0", "-hls_segment_type", "fmp4", "-hls_time", fmt.Sprintf("%d", HLSTIME), "-hls_fmp4_init_filename", "-1.mp4",
 		"-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_segment_filename", fmt.Sprintf("%s", path.Join(outdir, "hash%d.mp4")), path.Join(outdir, "out.m3u8"))
 
 	log.Printf("Running Command: %s", strings.Join(cmd.Args, " "))
@@ -134,28 +133,25 @@ func (p Prober) SegmentMKVToHLS(filepath, outdir string) error {
 		return err
 	}
 
+	id := ctx.Value("id")
+
+	if id == nil {
+		return errors.New("No id found in context")
+	}
+
+	client := hub.clients[id.(string)]
+	client.cmd = cmd
+
+	chWriter := newChanWrite(client.outbuf)
+
 	go func() {
 		for {
 			select {
 			case <-chWriter.donech:
 				log.Println("Closing stderr channel")
-				close(chWriter.recvch)
 				return
 			default:
 				io.Copy(chWriter, stderr)
-			}
-		}
-	}()
-
-	go func() {
-		log.Println("Receving data")
-		for {
-			select {
-			case <-chWriter.donech:
-				log.Println("Closing output")
-				return
-			default:
-				_ = <-chWriter.recvch
 			}
 		}
 	}()

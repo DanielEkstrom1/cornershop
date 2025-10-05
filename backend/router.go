@@ -3,7 +3,14 @@ package main
 import "net/http"
 
 func HydrateRouter(router *http.ServeMux) {
-	router.HandleFunc("/video/", ServeTranscodedFile)
-	router.HandleFunc("/video/main.m3u8", ServePlaylistFile) 
-	router.HandleFunc("/media/list", ListEpisodes)
+	publicRouter := http.NewServeMux()
+	publicRouter.HandleFunc("/video/", ServeTranscodedFile)
+	publicRouter.HandleFunc("/video/main.m3u8", ServePlaylistFile)
+	publicRouter.HandleFunc("/media/list", ListEpisodes)
+	publicRouter.HandleFunc("/session/Playing", Playing)
+	publicRouter.HandleFunc("/session/Stopped", Stopped)
+	publicRouter.HandleFunc("/session/Session", Session)
+	publicRouter.HandleFunc("/session/Seek", Seek)
+	publicRouter.HandleFunc("/session/Killed", Kill)
+	router.Handle("/", Device(publicRouter))
 }

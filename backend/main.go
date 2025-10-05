@@ -38,6 +38,7 @@ var (
 	}
 	prober = Prober{}
 	hls    = Hls{Prober: prober, MkvDir: "../media", OutDir: "../transcodes"}
+	hub    = NewHub()
 )
 
 func init() {
@@ -62,20 +63,12 @@ func init() {
 
 func main() {
 	port := ":8080"
-
 	router := http.NewServeMux()
-
-	hub := NewHub()
 	go hub.Run()
-
-
 	router.HandleFunc("/socket", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
-
 	HydrateRouter(router)
-
 	log.Printf("Serving in %s\n", port)
 	log.Fatal(http3.ListenAndServeTLS(port, "cert.pem", "key.pem", Cookie(Loggin(router))))
 }
-

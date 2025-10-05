@@ -13,3 +13,20 @@ CREATE TABLE episode (
   video_term TEXT NOT NULL
 );
 
+CREATE TABLE user_session (
+  id   INTEGER PRIMARY KEY,
+  device TEXT NOT NULL,
+  anime_title TEXT NOT NULL ,
+  episode_number TEXT  NOT NULL,
+  playing BOOLEAN NOT NULL DEFAULT false,
+  transcoding BOOLEAN NOT NULL DEFAULT false,
+  position INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY(device) REFERENCES device(device),
+  FOREIGN KEY(anime_title) REFERENCES episode(anime_title),
+  FOREIGN KEY(episode_number) REFERENCES episode(episode_number)
+);
+
+CREATE TABLE device (
+  id TEXT PRIMARY KEY NOT NULL,
+  agent TEXT NOT NULL
+);

@@ -1,8 +1,15 @@
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
+import iconify from '@tomjs/vite-plugin-iconify';
 
 export default defineConfig({
-  plugins: [tailwindcss()],
+  plugins: [tailwindcss(), 
+     iconify({
+      resources: ['https://unpkg.com/@iconify/json/json'],
+      rotate: 3000,
+      local: ['ant-design', 'ep'],
+    })
+  ],
   server : {
     proxy: {
       '/api' : {

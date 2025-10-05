@@ -31,14 +31,20 @@ func (h *Hub) Run() {
 			h.clients[client.id] = client
 			log.Printf("Welcome %s\n", client.id)
 		case client := <-h.unregister:
-			delete(h.clients, client.id)
-			log.Printf("Goodbyte %s\n", client.id)
+			if _, ok := h.clients[client.id]; ok {
+				delete(h.clients, client.id)
+				close(client.outbuf)
+				log.Printf("Goodbyte %s\n", client.id)
+			}
 		case message := <-h.broadcast:
 			for _, client := range h.clients {
-				client.outbuf <- message
-
+				select {
+				case client.outbuf <- message:
+				default:
+					close(client.outbuf)
+					delete(h.clients, client.id)
+				}
 			}
-
 		}
 	}
 }

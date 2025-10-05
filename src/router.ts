@@ -2,6 +2,7 @@ interface Route {
   path: string;
   render: () => string;
   setup?: () => void;
+  destroy?: () => void;
 }
 
 class Router {
@@ -14,15 +15,20 @@ class Router {
     this.setupLinkHandlers();
   }
 
-  addRoute(path: string, render: () => string, setup?: () => void): void {
-    this.routes.push({ path, render, setup });
+  addRoute(
+    path: string,
+    render: () => string,
+    setup?: () => void,
+    destroy?: () => void,
+  ): void {
+    this.routes.push({ path, render, setup, destroy });
   }
 
   private setupLinkHandlers(): void {
     document.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
       const link = target.closest("a");
-      
+
       if (link && link.href && link.origin === window.location.origin) {
         e.preventDefault();
         const path = new URL(link.href).pathname;
@@ -33,6 +39,10 @@ class Router {
 
   navigate(path: string): void {
     if (path !== this.currentPath) {
+      const route = this.routes.find((r) => r.path === this.currentPath);
+      if (route?.destroy) {
+        route.destroy();
+      }
       this.currentPath = path;
       history.pushState({}, "", path);
       this.render();
@@ -45,13 +55,14 @@ class Router {
   }
 
   private render(): void {
-    const route = this.routes.find(r => r.path === this.currentPath) || 
-                  this.routes.find(r => r.path === "/");
-    
+    const route =
+      this.routes.find((r) => r.path === this.currentPath) ||
+      this.routes.find((r) => r.path === "/");
+
     if (route) {
       const appElement = document.querySelector<HTMLDivElement>("#app")!;
       const content = route.render();
-      
+
       appElement.innerHTML = `
         <div class="min-h-screen bg-base-100">
           <div class="navbar bg-base-200 shadow-lg">
@@ -79,10 +90,13 @@ class Router {
       `;
 
       // Setup syncplay button handler
-      const syncplayBtn = document.querySelector<HTMLButtonElement>("#syncplay-btn");
+      const syncplayBtn =
+        document.querySelector<HTMLButtonElement>("#syncplay-btn");
       if (syncplayBtn) {
         syncplayBtn.onclick = () => {
-          console.log("SyncPlay button clicked - placeholder for future implementation");
+          console.log(
+            "SyncPlay button clicked - placeholder for future implementation",
+          );
         };
       }
 

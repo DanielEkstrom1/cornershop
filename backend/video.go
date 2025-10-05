@@ -28,6 +28,7 @@ func ServeTranscodedFile(w http.ResponseWriter, r *http.Request) {
 
 	http.ServeFile(w, r, filepath)
 }
+
 func ServePlaylistFile(w http.ResponseWriter, r *http.Request) {
 	store := cornershopdb.New(db)
 
@@ -58,7 +59,7 @@ func ServePlaylistFile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	go hls.SegmentMKVToHLS(ep.FileName)
+	go hls.SegmentMKVToHLS(r.Context(), ep.FileName)
 
 	w.WriteHeader(200)
 	w.Write(bytes)

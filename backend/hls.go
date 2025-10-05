@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -62,14 +63,14 @@ func (h Hls) getPath(filename string) string {
 
 }
 
-func (h Hls) SegmentMKVToHLS(mkv string) error {
+func (h Hls) SegmentMKVToHLS(ctx context.Context, mkv string) error {
 	fullpath := h.getPath(mkv)
 
 	if _, err := os.Stat(fullpath); errors.Is(err, os.ErrNotExist) {
 		return os.ErrNotExist
 	}
 
-	if err := h.Prober.SegmentMKVToHLS(fullpath, h.OutDir); err != nil {
+	if err := h.Prober.SegmentMKVToHLS(ctx, fullpath, h.OutDir); err != nil {
 		log.Println("Segment to mkv failed, err: ", err)
 		return err
 	}
@@ -91,7 +92,7 @@ func (h Hls) GenPlaylist(mkv string) ([]byte, error) {
 	sb.WriteString("#EXT-X-TARGETDURATION:4\n")
 	sb.WriteString("#EXT-X-MEDIA-SEQUENCE:0\n")
 	sb.WriteString("#EXT-X-PLAYLIST-TYPE:VOD\n")
-	sb.WriteString("#EXT-X-MAP:URI=\"init.mp4\"\n")
+	sb.WriteString("#EXT-X-MAP:URI=\"-1.mp4\"\n")
 
 	info, err := h.Prober.Probe(fullpath)
 	if err != nil {
