@@ -53,7 +53,11 @@ func (c *Client) write() {
 func (c *Client) read() {
 	defer func() {
 		c.hub.unregister <- c
+		if c.cmd != nil {
+		c.cmd.Process.Kill()
+		}
 		c.conn.Close()
+		close(c.outbuf)
 	}()
 
 	for {

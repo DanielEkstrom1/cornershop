@@ -59,7 +59,7 @@ func ServePlaylistFile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	go hls.SegmentMKVToHLS(r.Context(), ep.FileName)
+	//go hls.SegmentMKVToHLS(r.Context(), ep.FileName)
 
 	w.WriteHeader(200)
 	w.Write(bytes)

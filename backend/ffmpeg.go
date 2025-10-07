@@ -101,7 +101,10 @@ func newChanWrite(ch chan []byte) *ChanWriter {
 }
 
 func (c ChanWriter) Write(b []byte) (int, error) {
-	c.recvch <- b
+    cp := make([]byte, len(b))
+    copy(cp, b)
+
+	c.recvch <- cp
 	return len(b), nil
 }
 
@@ -119,20 +122,6 @@ func (p Prober) SegmentMKVToHLS(ctx context.Context, filepath, outdir string) er
 
 	log.Printf("Writing to %s\n", outdir)
 
-	cmd := exec.Command("ffmpeg", "-noaccurate_seek", "-init_hw_device", "cuda=cu:0", "-filter_hw_device", "cu",
-		"-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-noautorotate", "-v", "quiet", "-stats", "-hwaccel_flags", "+unsafe_output",
-		"-threads", "1", "-canvas_size", "1920x1080", "-i", filepath, "-codec:v:0", "h264_nvenc",
-		"-preset", "fast", "-vf", "scale_cuda=format=yuv420p", "-flags", "+cgop", "-g", "30",
-		"-threads", "0", "-hls_segment_type", "fmp4", "-hls_time", fmt.Sprintf("%d", HLSTIME), "-hls_fmp4_init_filename", "-1.mp4",
-		"-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_segment_filename", fmt.Sprintf("%s", path.Join(outdir, "hash%d.mp4")), path.Join(outdir, "out.m3u8"))
-
-	log.Printf("Running Command: %s", strings.Join(cmd.Args, " "))
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
 	id := ctx.Value("id")
 
 	if id == nil {
@@ -140,7 +129,22 @@ func (p Prober) SegmentMKVToHLS(ctx context.Context, filepath, outdir string) er
 	}
 
 	client := hub.clients[id.(string)]
+
+	cmd := exec.Command("ffmpeg", "-noaccurate_seek", "-init_hw_device", "cuda=cu:0", "-filter_hw_device", "cu",
+		"-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-noautorotate", "-v", "quiet", "-stats", "-hwaccel_flags", "+unsafe_output",
+		"-threads", "1", "-canvas_size", "1920x1080", "-i", filepath, "-codec:v:0", "h264_nvenc",
+		"-preset", "fast", "-vf", "scale_cuda=format=yuv420p", "-flags", "+cgop", "-g", "30",
+		"-threads", "0",
+		"-hls_segment_type", "fmp4", "-hls_time", fmt.Sprintf("%d", HLSTIME), "-hls_fmp4_init_filename", "-1.mp4",
+		"-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_segment_filename", fmt.Sprintf("%s", path.Join(outdir, "hash%d.mp4")), path.Join(outdir, "out.m3u8"))
+
 	client.cmd = cmd
+	log.Printf("Running Command: %s", strings.Join(cmd.Args, " "))
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
 
 	chWriter := newChanWrite(client.outbuf)
 

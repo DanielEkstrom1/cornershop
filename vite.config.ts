@@ -11,6 +11,9 @@ export default defineConfig({
     })
   ],
   server : {
+    watch: {
+      usePolling: true
+    },
     proxy: {
       '/api' : {
         target: "https://localhost:8080",

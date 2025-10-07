@@ -33,7 +33,6 @@ func (h *Hub) Run() {
 		case client := <-h.unregister:
 			if _, ok := h.clients[client.id]; ok {
 				delete(h.clients, client.id)
-				close(client.outbuf)
 				log.Printf("Goodbyte %s\n", client.id)
 			}
 		case message := <-h.broadcast:
@@ -41,7 +40,6 @@ func (h *Hub) Run() {
 				select {
 				case client.outbuf <- message:
 				default:
-					close(client.outbuf)
 					delete(h.clients, client.id)
 				}
 			}
