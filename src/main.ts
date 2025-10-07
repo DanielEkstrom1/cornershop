@@ -1,4 +1,5 @@
 import "./style.css";
+import "./htmlplayer.css";
 import Router from "./router.ts";
 import { render as homeRender, setup as homeSetup } from "./index.ts";
 import { render as aboutRender } from "./about/index.ts";
@@ -14,6 +15,9 @@ websocket.onerror = (event) => {
 websocket.onopen = (event) => {
   websocket.send("Hello from client")
   console.log(event)
+}
+websocket.onmessage = (event) => {
+  console.log(event.data)
 }
 
 router.addRoute("/", homeRender, homeSetup);
