@@ -10,7 +10,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/quic-go/quic-go/http3"
 
 	_ "embed"
 )
@@ -70,5 +69,5 @@ func main() {
 	})
 	HydrateRouter(router)
 	log.Printf("Serving in %s\n", port)
-	log.Fatal(http3.ListenAndServeTLS(port, "cert.pem", "key.pem", Cookie(Loggin(router))))
+	log.Fatal(http.ListenAndServe(port, Cookie(Loggin(router))))
 }

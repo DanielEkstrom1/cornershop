@@ -1,10 +1,13 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import iconify from '@tomjs/vite-plugin-iconify';
 
 export default defineConfig({
-  plugins: [tailwindcss(), 
-     iconify({
+  plugins: [
+    react(),
+    tailwindcss(),
+    iconify({
       resources: ['https://unpkg.com/@iconify/json/json'],
       rotate: 3000,
       local: ['ant-design', 'ep'],
