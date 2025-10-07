@@ -5,6 +5,7 @@ import { useVideoPlayer } from "../hooks/useVideoPlayer.ts";
 import VideoControls from "../components/video/VideoControls.tsx";
 import VideoSeekBar from "../components/video/VideoSeekBar.tsx";
 import NerdInfo from "../components/video/NerdInfo.tsx";
+import VolumeControls from "../components/video/VolumeControl.tsx";
 
 function Video() {
   const [searchParams] = useSearchParams();
@@ -23,6 +24,8 @@ function Video() {
     handleSeeked,
     seek,
     skip,
+    titleRef,
+    episodeRef
   } = useVideoPlayer(videoId);
 
   const handleFullscreen = () => {
@@ -39,7 +42,7 @@ function Video() {
         <button onClick={() => (window.location.href = "/")} className="button">
           <Icon icon="ant-design:arrow-left-outlined" />
         </button>
-        <p id="title">title</p>
+        <p id="title">{titleRef?.current}</p>
       </div>
 
       <NerdInfo show={showNerdInfo} />

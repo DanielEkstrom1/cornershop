@@ -30,7 +30,7 @@ function NavBar() {
 
   return (
     <div className="min-h-screen bg-base-100">
-      <div className="navbar bg-base-200 shadow-lg">
+      <div className="flex items-center bg-base-200 shadow-lg">
         <div className="flex-1">
           <h1 className="text-xl font-bold">
             <Link to="/" className="hover:text-primary">
@@ -38,14 +38,14 @@ function NavBar() {
             </Link>
           </h1>
         </div>
-        <div className="flex-none">
-          <ul className="menu menu-horizontal px-1">
+        <div className="flex">
+          <ul className="flex justify-between items-center px-1">
             <li>
               <Link to="/" className={location.pathname === "/" ? "active" : ""}>
                 Home
               </Link>
             </li>
-            <li>
+            <li className="mx-4">
               <Link
                 to="/video"
                 className={location.pathname === "/video" ? "active" : ""}
@@ -64,7 +64,7 @@ function NavBar() {
           </ul>
           <button
             id="syncplay-btn"
-            className="btn btn-primary ml-4"
+            className="flex button ml-4"
             onClick={() =>
               console.log(
                 "SyncPlay button clicked - placeholder for future implementation"

@@ -54,6 +54,10 @@ SET playing = ?,
   position  = ?
 WHERE device = ?;
 
+-- name: GetPlayback :one
+SELECT * from user_session 
+WHERE device = ?;
+
 -- name: UpdatePlayingSession :exec
 UPDATE user_session 
 SET playing = ?

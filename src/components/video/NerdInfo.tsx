@@ -8,7 +8,7 @@ function NerdInfo({ show }: NerdInfoProps) {
   if (!show) return null;
 
   return (
-    <div className="nerdinfo">
+    <div className={`nerdinfo ${show ? "": "hidden"}`}>
       {Object.keys(NERD_INFO_SECTIONS).map((key) => (
         <div key={key} className="playerStat-stats">
           {key}

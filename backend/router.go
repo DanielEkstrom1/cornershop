@@ -12,5 +12,6 @@ func HydrateRouter(router *http.ServeMux) {
 	publicRouter.HandleFunc("/session/Session", Session)
 	publicRouter.HandleFunc("/session/Seek", Seek)
 	publicRouter.HandleFunc("/session/Killed", Kill)
+	publicRouter.HandleFunc("/session/Playback", Playback)
 	router.Handle("/", Device(publicRouter))
 }

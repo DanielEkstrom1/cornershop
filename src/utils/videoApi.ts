@@ -30,3 +30,14 @@ export const reportPlaying = async (playing: boolean): Promise<void> => {
     console.log(await response.text());
   }
 };
+
+export const getPlayerInfo = async (): Promise<UserSession | null> => {
+  const response = await fetch("/api/session/Playback")
+
+  if (response.ok) {
+    return response.json() as Promise<UserSession>
+  }
+
+  return null
+
+}

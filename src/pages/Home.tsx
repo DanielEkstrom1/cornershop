@@ -30,7 +30,7 @@ function Home() {
   }, []);
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container flex mx-auto p-4">
       <ul id="episode_list">
         {episodes.map((media) => (
           <li

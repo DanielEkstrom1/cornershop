@@ -179,7 +179,7 @@ video::-webkit-media-controls { display: none !important; }
 }
 
 .nerdinfo {
-  display: none;
+  display: block;
   position: absolute;
   top: 6.5em;
   padding: 1em;

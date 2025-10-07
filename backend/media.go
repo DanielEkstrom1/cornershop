@@ -42,6 +42,22 @@ func Stopped(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func Playback(w http.ResponseWriter, r *http.Request) {
+	id := r.Context().Value("id").(string)
+	store := cornershopdb.New(db)
+	var params cornershopdb.UserSession
+	if params, err = store.GetPlayback(r.Context(), id); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(params); err !=nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+	}
+}
+
 func Session(w http.ResponseWriter, r *http.Request) {
 	var params cornershopdb.UpdateSessionParams
 	id := r.Context().Value("id").(string)

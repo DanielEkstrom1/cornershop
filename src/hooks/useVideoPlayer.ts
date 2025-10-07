@@ -1,7 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import SubtitlesOctopus from "libass-wasm";
-import { reportSession, killSession, reportPlaying } from "../utils/videoApi.ts";
+import {
+  reportSession,
+  killSession,
+  reportPlaying,
+  getPlayerInfo,
+} from "../utils/videoApi.ts";
 import type { UserSession } from "../types/video.ts";
 
 export const useVideoPlayer = (videoId: string | null) => {
@@ -11,12 +16,25 @@ export const useVideoPlayer = (videoId: string | null) => {
   const intervalRef = useRef<number | null>(null);
   const sessionIntervalRef = useRef<number | null>(null);
 
+  const playbackRef = useRef<UserSession | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
   const titleRef = useRef("");
   const episodeRef = useRef("");
+
+  useEffect(() => {
+    const getPlayerinfoHook = async () => {
+      const data = await getPlayerInfo();
+      titleRef.current = data!.anime_title;
+      episodeRef.current = data!.episode_number;
+    };
+    getPlayerinfoHook();
+    console.log(titleRef.current)
+    console.log(episodeRef.current)
+  });
 
   useEffect(() => {
     if (!videoId || !videoRef.current) return;
@@ -30,8 +48,10 @@ export const useVideoPlayer = (videoId: string | null) => {
       video: videoRef.current,
       subUrl: "/api/video/sub.ass",
       fonts: ["/GUNPLAY-REGULAR.TTF"],
-      workerUrl: "/node_modules/libass-wasm/dist/js/subtitles-octopus-worker.js",
-      legacyWorkerUrl: "/node_modules/libass-wasm/subtitles-octopus-worker-legacy.js",
+      workerUrl:
+        "/node_modules/libass-wasm/dist/js/subtitles-octopus-worker.js",
+      legacyWorkerUrl:
+        "/node_modules/libass-wasm/subtitles-octopus-worker-legacy.js",
       prescaleFactor: 0.5,
     };
     instanceRef.current = new SubtitlesOctopus(options);
@@ -204,5 +224,7 @@ export const useVideoPlayer = (videoId: string | null) => {
     handleSeeked,
     seek,
     skip,
+    titleRef,
+    episodeRef,
   };
 };

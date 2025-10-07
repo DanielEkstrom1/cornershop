@@ -1,4 +1,5 @@
 import { Icon } from "@iconify/react";
+import VolumeControls from "./VolumeControl";
 
 interface VideoControlsProps {
   isPlaying: boolean;
@@ -32,11 +33,12 @@ function VideoControls({
       <button id="forward" className="button" onClick={onForward}>
         <Icon icon="ant-design:forward-outlined" />
       </button>
+      <VolumeControls onClick={() => console.log("volume")} />
       <button className="button info" id="info" onClick={onToggleNerdInfo}>
-        nerdinfo
+        <Icon icon="ant-design:bars-outlined"></Icon>
       </button>
       <button id="fullscreen" className="button" onClick={onFullscreen}>
-        <Icon icon="ant-design:fullscreen-outlined" />
+        <Icon icon="ant-design:expand-outlined" />
       </button>
     </div>
   );
