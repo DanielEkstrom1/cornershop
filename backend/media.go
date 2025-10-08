@@ -52,7 +52,7 @@ func Playback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(params); err !=nil {
+	if err := json.NewEncoder(w).Encode(params); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 	}
@@ -98,11 +98,8 @@ func Kill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if client, ok := hub.clients[id]; ok {
-		if err := client.cmd.Process.Kill(); err != nil {
-			return
-		}
+		client.donech <- struct{}{}
 	}
-
 }
 
 func Seek(w http.ResponseWriter, r *http.Request) {

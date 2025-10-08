@@ -89,23 +89,27 @@ func checkFFProbe() error {
 
 type ChanWriter struct {
 	donech chan struct{}
-	recvch chan []byte
+	outbuf chan []byte
 }
 
-func newChanWrite(ch chan []byte) *ChanWriter {
-	donech := make(chan struct{})
+func newChanWrite(donech chan struct{}, ch chan []byte) *ChanWriter {
 	return &ChanWriter{
 		donech: donech,
-		recvch: ch,
+		outbuf: ch,
 	}
 }
 
 func (c ChanWriter) Write(b []byte) (int, error) {
-    cp := make([]byte, len(b))
-    copy(cp, b)
-
-	c.recvch <- cp
-	return len(b), nil
+	select {
+	case <-c.donech:
+		return 0, nil
+	default:
+		cp := make([]byte, len(b))
+		copy(cp, b)
+		log.Println("sending")
+		c.outbuf <- cp
+		return len(b), nil
+	}
 }
 
 func (p Prober) SegmentMKVToHLS(ctx context.Context, filepath, outdir string) error {
@@ -128,9 +132,16 @@ func (p Prober) SegmentMKVToHLS(ctx context.Context, filepath, outdir string) er
 		return errors.New("No id found in context")
 	}
 
-	client := hub.clients[id.(string)]
+	var client *Client
+	var ok bool
+	if client, ok = hub.clients[id.(string)]; !ok {
+		return errors.New("No client found")
+	}
 
-	cmd := exec.Command("ffmpeg", "-noaccurate_seek", "-init_hw_device", "cuda=cu:0", "-filter_hw_device", "cu",
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-noaccurate_seek", "-init_hw_device", "cuda=cu:0", "-filter_hw_device", "cu",
 		"-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-noautorotate", "-v", "quiet", "-stats", "-hwaccel_flags", "+unsafe_output",
 		"-threads", "1", "-canvas_size", "1920x1080", "-i", filepath, "-codec:v:0", "h264_nvenc",
 		"-preset", "fast", "-vf", "scale_cuda=format=yuv420p", "-flags", "+cgop", "-g", "30",
@@ -138,34 +149,38 @@ func (p Prober) SegmentMKVToHLS(ctx context.Context, filepath, outdir string) er
 		"-hls_segment_type", "fmp4", "-hls_time", fmt.Sprintf("%d", HLSTIME), "-hls_fmp4_init_filename", "-1.mp4",
 		"-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_segment_filename", fmt.Sprintf("%s", path.Join(outdir, "hash%d.mp4")), path.Join(outdir, "out.m3u8"))
 
-	client.cmd = cmd
 	log.Printf("Running Command: %s", strings.Join(cmd.Args, " "))
 
 	stderr, err := cmd.StderrPipe()
+
 	if err != nil {
 		return err
 	}
 
-	chWriter := newChanWrite(client.outbuf)
+	chWriter := newChanWrite(client.donech, client.outbuf)
+
+	if err := cmd.Start(); err != nil {
+		log.Println("Coulnt start ffmpeg command", err)
+		return err
+	}
 
 	go func() {
-		for {
-			select {
-			case <-chWriter.donech:
-				log.Println("Closing stderr channel")
+		if n, err := io.Copy(chWriter, stderr); err == nil {
+			if n == 0 {
 				return
-			default:
-				io.Copy(chWriter, stderr)
 			}
 		}
 	}()
 
-	defer close(chWriter.donech)
+	err = cmd.Wait()
 
-	if err := cmd.Run(); err != nil {
+	if ctx.Err() == context.Canceled {
+		log.Println("ffmpeg process cancelled")
+		return nil
+	} else if err != nil {
+		log.Println("FFMPEG errored")
 		return err
 	}
-
 	return nil
 }
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,7 +13,7 @@ type Client struct {
 	conn   *websocket.Conn
 	outbuf chan []byte
 	id     string
-	cmd    *exec.Cmd
+	donech chan struct{}
 }
 
 func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
@@ -31,7 +30,7 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := &Client{id: cookie.Value, hub: hub, conn: conn, outbuf: make(chan []byte)}
+	c := &Client{id: cookie.Value, hub: hub, conn: conn, outbuf: make(chan []byte), donech: make(chan struct{})}
 
 	c.hub.register <- c
 
@@ -53,11 +52,9 @@ func (c *Client) write() {
 func (c *Client) read() {
 	defer func() {
 		c.hub.unregister <- c
-		if c.cmd != nil {
-		c.cmd.Process.Kill()
-		}
-		c.conn.Close()
+		close(c.donech)
 		close(c.outbuf)
+		c.conn.Close()
 	}()
 
 	for {

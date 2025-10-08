@@ -2,6 +2,7 @@ package main
 
 import (
 	cornershopdb "baller/cornershop/cornershop"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -59,7 +60,8 @@ func ServePlaylistFile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//go hls.SegmentMKVToHLS(r.Context(), ep.FileName)
+	ctx := context.WithValue(context.Background(), "id", r.Context().Value("id").(string))
+	go hls.SegmentMKVToHLS(ctx, ep.FileName)
 
 	w.WriteHeader(200)
 	w.Write(bytes)
